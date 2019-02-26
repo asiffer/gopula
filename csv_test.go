@@ -10,7 +10,6 @@ var (
 	testCSV = "resources/data.csv"
 )
 
-
 func TestSaveCsv(t *testing.T) {
 	n := 4
 	p := 3
@@ -21,7 +20,7 @@ func TestSaveCsv(t *testing.T) {
 		t.Errorf("Error in saving matrix (%s)", err.Error())
 	}
 }
-	
+
 func TestLoadCsv(t *testing.T) {
 	M, err := LoadCSV(testCSV, ',', false)
 	n, p := M.Dims()
@@ -30,7 +29,4 @@ func TestLoadCsv(t *testing.T) {
 	} else if n != 4 || p != 3 {
 		t.Errorf("Bad matrix dimensions (expected (4,3), got (%d, %d))", n, p)
 	}
-}
-
-}
 }
