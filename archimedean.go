@@ -1,5 +1,8 @@
 // archimedean.go
 
+// Package gopula implements common Archimedean Copulas. It aims
+// both to infer a copula from observations and to sample data from
+// a given model.
 package gopula
 
 import (

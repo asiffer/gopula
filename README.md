@@ -1,4 +1,4 @@
-# gopula
+# gopula [![Build Status](https://travis-ci.com/asiffer/gopula.svg?branch=master)](https://travis-ci.com/asiffer/gopula) [![Go Report Card](https://goreportcard.com/badge/github.com/asiffer/gopula)](https://goreportcard.com/report/github.com/asiffer/gopula) [![Coverage Status](https://codecov.io/github/asiffer/gopula/coverage.svg?branch=master)](https://codecov.io/github/asiffer/gopula?branch=master) [![GoDoc](https://godoc.org/github.com/asiffer/gopula?status.svg)](https://godoc.org/github.com/asiffer/gopula) 
 
 ## Introduction
 
