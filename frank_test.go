@@ -100,7 +100,7 @@ func TestFrankSampling(t *testing.T) {
 	M := AC.Sample(9000, 3)
 	result := AC.Fit(M)
 
-	if math.Abs(AC.theta-theta) > 0.1 {
+	if math.Abs(AC.theta-theta) > 0.15 {
 		t.Errorf("Bad MLE fit, expected theta* = %.3f, got %.3f", theta, AC.theta)
 		testERROR()
 		fmt.Println(result)
