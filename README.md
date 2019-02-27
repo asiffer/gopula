@@ -4,7 +4,8 @@
 
 `gopula` is a pure Go package aimed to deal with Archimedean Copulas. It implements the well known families: Ali-Mikhail-Haq, Clayton, Frank, Gumbel and Joe. 
 
-Currently `gopula` has two main features:
+Currently `gopula` has three main features:
+ - Basic computations (pdf, cdf, etc.)
  - Parameter estimation through Maximum Likelihood (with confidence bounds)
  - Data sampling
 
@@ -122,6 +123,11 @@ $ go run inference.go
 ```
 
 We can notice that 𝜃* is quite close to those we used to generate the data (the values in brackets are 95% confidence bounds and ℓ is the maximum likelihood reached).
+
+## Troubleshooting
+
+The sampling may output out-of-bounds data (coordinates higher than 1). It occurs when the radial quantile function fails. As it uses a bisection search, it is probably due to a lack of function evaluations. You can increase it through the variable `gopula.MaxFunEvals`. 
+
 
 ## References
 

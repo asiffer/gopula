@@ -5,6 +5,7 @@ package gopula
 import (
 	"fmt"
 	"strings"
+	"testing"
 )
 
 var (
@@ -42,4 +43,15 @@ func title(s string) {
 
 	fmt.Println(left + s + right)
 
+}
+
+func TestPrintFitResults(t *testing.T) {
+	M, err := LoadCSV(claytonSample, ',', false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	AC := NewCopula("clayton", -3.)
+	result := AC.Fit(M)
+	fmt.Println(result)
 }

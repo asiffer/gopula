@@ -22,10 +22,11 @@ var (
 	stirlingFirstKind  = mat.NewDense(MaxDim, MaxDim, nil)
 	stirlingSecondKind = mat.NewDense(MaxDim, MaxDim, nil)
 	// Inf is a 'big' value (for optimizing bound purpose)
-	Inf = 15.
+	Inf = 14.
 )
 
 func init() {
+	rand.Seed(time.Now().UnixNano())
 	PrecomputeStirlingNumbers()
 }
 
@@ -63,28 +64,32 @@ type FitResult struct {
 	UpperBound float64
 	// LowerBound is the 95% upper confidence bound
 	LowerBound float64
-	// Iterations id the number of iterations of th Brent minimizer
-	Iterations int
+	// Evals is the number of function evaluations
+	Evals int
+	// Message describes whether the fit has suceeded
+	Message string
 }
 
 func (fr *FitResult) String() string {
-	return fmt.Sprintf("𝜃* %.3f \t[%.3f %.3f]\n\u2113  %.3f",
-		fr.Theta,
-		fr.LowerBound,
-		fr.UpperBound,
-		fr.LogLikelihood)
+	format := "%8s %.6f\n%8s %.6f\n%8s [%.3f, %.3f]\n%8s %d\n%8s %s"
+	return fmt.Sprintf(format,
+		"ℓ", fr.LogLikelihood,
+		"𝜃", fr.Theta,
+		"95%", fr.LowerBound, fr.UpperBound,
+		"Evals", fr.Evals,
+		"Message", fr.Message)
 }
 
-// ArchimedeanCopulaFamily is a generic structure defining
-// a archimedean copula
-type ArchimedeanCopulaFamily struct {
+// ArchimedeanCopula is a generic structure defining
+// an archimedean copula
+type ArchimedeanCopula struct {
 	theta  float64 // the parameter of the generator family
-	copula ArchimedeanCopula
+	copula ArchimedeanCopuler
 }
 
-// ArchimedeanCopula is an interface to implement
-// archimedean copula
-type ArchimedeanCopula interface {
+// ArchimedeanCopuler is an interface to implement
+// an archimedean copula
+type ArchimedeanCopuler interface {
 	ThetaBounds() (float64, float64)
 	Psi(t float64, theta float64) float64
 	PsiInv(t float64, theta float64) float64
@@ -95,38 +100,38 @@ type ArchimedeanCopula interface {
 }
 
 // NewCopula returns a new copula according to the desired family
-func NewCopula(family string, theta float64) *ArchimedeanCopulaFamily {
+func NewCopula(family string, theta float64) *ArchimedeanCopula {
 	switch family {
 	case "clayton", "Clayton":
 		cop := &Clayton{}
 		if theta > 0. {
-			return &ArchimedeanCopulaFamily{theta: theta, copula: cop}
+			return &ArchimedeanCopula{theta: theta, copula: cop}
 		}
-		return &ArchimedeanCopulaFamily{theta: 1., copula: cop}
+		return &ArchimedeanCopula{theta: 1., copula: cop}
 	case "joe", "Joe":
 		cop := &Joe{}
 		if theta >= 1. {
-			return &ArchimedeanCopulaFamily{theta: theta, copula: cop}
+			return &ArchimedeanCopula{theta: theta, copula: cop}
 		}
-		return &ArchimedeanCopulaFamily{theta: 1., copula: cop}
+		return &ArchimedeanCopula{theta: 1., copula: cop}
 	case "frank", "Frank":
 		cop := &Frank{}
 		if theta > 0. {
-			return &ArchimedeanCopulaFamily{theta: theta, copula: cop}
+			return &ArchimedeanCopula{theta: theta, copula: cop}
 		}
-		return &ArchimedeanCopulaFamily{theta: 1., copula: cop}
+		return &ArchimedeanCopula{theta: 1., copula: cop}
 	case "amh", "AMH":
 		cop := &AMH{}
 		if theta > 0. && theta < 1. {
-			return &ArchimedeanCopulaFamily{theta: theta, copula: cop}
+			return &ArchimedeanCopula{theta: theta, copula: cop}
 		}
-		return &ArchimedeanCopulaFamily{theta: 0.5, copula: cop}
+		return &ArchimedeanCopula{theta: 0.5, copula: cop}
 	case "gumbel", "Gumbel":
 		cop := &Gumbel{}
 		if theta >= 1. {
-			return &ArchimedeanCopulaFamily{theta: theta, copula: cop}
+			return &ArchimedeanCopula{theta: theta, copula: cop}
 		}
-		return &ArchimedeanCopulaFamily{theta: 2., copula: cop}
+		return &ArchimedeanCopula{theta: 2., copula: cop}
 	default:
 		return nil
 	}
@@ -134,23 +139,23 @@ func NewCopula(family string, theta float64) *ArchimedeanCopulaFamily {
 
 // Cdf computes the cumulative distribution function
 // of the copula
-func (arch *ArchimedeanCopulaFamily) Cdf(vector []float64) float64 {
+func (arch *ArchimedeanCopula) Cdf(vector []float64) float64 {
 	return arch.copula.Cdf(vector, arch.theta)
 }
 
 // Pdf computes the density of the generated copula
-func (arch *ArchimedeanCopulaFamily) Pdf(vector []float64) float64 {
+func (arch *ArchimedeanCopula) Pdf(vector []float64) float64 {
 	return arch.copula.Pdf(vector, arch.theta)
 }
 
 // LogPdf computes the log density of the generated copula
-func (arch *ArchimedeanCopulaFamily) LogPdf(vector []float64) float64 {
+func (arch *ArchimedeanCopula) LogPdf(vector []float64) float64 {
 	return arch.copula.LogPdf(vector, arch.theta)
 }
 
 // LogLikelihood computes the log-likelihood of a batch of
 // observations given the underlying archimedean copula
-func (arch *ArchimedeanCopulaFamily) LogLikelihood(M *mat.Dense) float64 {
+func (arch *ArchimedeanCopula) LogLikelihood(M *mat.Dense) float64 {
 	nObs, _ := M.Dims()
 	ll := 0.
 	for i := 0; i < nObs; i++ {
@@ -162,7 +167,7 @@ func (arch *ArchimedeanCopulaFamily) LogLikelihood(M *mat.Dense) float64 {
 // ConfidenceBounds compute the upper and lower confidence bounds
 // at given level (level = 1-alpha = 0.95 in practice). The parameter
 // theta must be the fitted value.
-func (arch *ArchimedeanCopulaFamily) ConfidenceBounds(M *mat.Dense, level float64) (float64, float64) {
+func (arch *ArchimedeanCopula) ConfidenceBounds(M *mat.Dense, level float64) (float64, float64) {
 	ll := arch.LogLikelihood(M)
 	cs := distuv.ChiSquared{K: 1, Src: nil}
 	q := cs.Quantile(level)
@@ -175,23 +180,34 @@ func (arch *ArchimedeanCopulaFamily) ConfidenceBounds(M *mat.Dense, level float6
 	return thetaDown, thetaUp
 }
 
-func (arch *ArchimedeanCopulaFamily) logLikelihoodToMinimize(theta float64, args interface{}) float64 {
-	// arch.theta = theta
+func (arch *ArchimedeanCopula) logLikelihoodToMinimize(theta float64, args interface{}) float64 {
+	// the argument is casted to a matrix
 	M := args.(*mat.Dense)
 	nObs, _ := M.Dims()
 	ll := 0.
 	for i := 0; i < nObs; i++ {
-		// ll += arch.LogPdf(M.RawRowView(i))
 		ll += arch.copula.LogPdf(M.RawRowView(i), theta)
 	}
+	// we return the opposite of the loglikelihood (for minimization)
 	return -ll
 }
 
 // Fit estimates the best theta parameter through maximum likelihood
 // estimation according to the input observations
-func (arch *ArchimedeanCopulaFamily) Fit(M *mat.Dense) *FitResult {
+func (arch *ArchimedeanCopula) Fit(M *mat.Dense) *FitResult {
+	var msg string
 	a, b := arch.copula.ThetaBounds()
-	thetaBest, llhood, nit := BrentMinimizer(arch.logLikelihoodToMinimize, M, a, b, 1e-4)
+	thetaBest, llhood, feval, err := BrentMinimizer(arch.logLikelihoodToMinimize, M, a, b, 1e-5)
+	if math.Min(math.Abs(thetaBest-a), math.Abs(thetaBest-a)) < 1e-3 {
+		msg = "Falling back to BFGS."
+		thetaBest, llhood, feval, err = BFGS(arch.logLikelihoodToMinimize, M, 0.5*(a+b))
+	}
+	if err != nil {
+		msg += " Error: " + err.Error()
+	} else {
+		msg += "Success"
+	}
+	// thetaBest, llhood, nit := BFGS(arch.logLikelihoodToMinimize, M, 0.5*(a+b))
 	arch.theta = thetaBest
 	down, up := arch.ConfidenceBounds(M, 0.95)
 	return &FitResult{
@@ -199,11 +215,12 @@ func (arch *ArchimedeanCopulaFamily) Fit(M *mat.Dense) *FitResult {
 		LogLikelihood: -llhood,
 		UpperBound:    up,
 		LowerBound:    down,
-		Iterations:    nit}
+		Evals:         feval,
+		Message:       msg}
 }
 
 // RadialCdf computes the cdf of the radial part of the ArchimeanCopula
-func (arch *ArchimedeanCopulaFamily) RadialCdf(x float64, dim int) float64 {
+func (arch *ArchimedeanCopula) RadialCdf(x float64, dim int) float64 {
 	if x <= 0. {
 		return 0.
 	}
@@ -226,7 +243,7 @@ func (arch *ArchimedeanCopulaFamily) RadialCdf(x float64, dim int) float64 {
 }
 
 // RadialPpf computes the quantile zp verifying P(X<zp) = p
-func (arch *ArchimedeanCopulaFamily) RadialPpf(p float64, dim int) float64 {
+func (arch *ArchimedeanCopula) RadialPpf(p float64, dim int) float64 {
 	if p > 0. && p < 1. {
 		fun := func(z float64, args interface{}) float64 {
 			return arch.RadialCdf(z, dim) - p
@@ -237,10 +254,12 @@ func (arch *ArchimedeanCopulaFamily) RadialPpf(p float64, dim int) float64 {
 			a = b
 			b = 2 * b
 		}
-		// fmt.Println(a, b)
+		// we know that the cdf is an increasing function
+		// so using the bisection algorithm seems enough
+		// to find the right quantile
 		root, err := Bisection(fun, nil, a, b, 5e-7)
-		// root, err := BrentRootFinder(fun, nil, a, b, 1e-10)
 		if err != nil {
+			fmt.Println(err)
 			return -1.
 		}
 		return root
@@ -249,9 +268,9 @@ func (arch *ArchimedeanCopulaFamily) RadialPpf(p float64, dim int) float64 {
 }
 
 // Sample generates random numbers according to the underlying copula
-func (arch *ArchimedeanCopulaFamily) Sample(size int, dim int) *mat.Dense {
+func (arch *ArchimedeanCopula) Sample(size int, dim int) *mat.Dense {
 	M := mat.NewDense(size, dim, nil)
-	rand.Seed(time.Now().UnixNano())
+
 	U := uniformSample(size)
 	for i := 0; i < size; i++ {
 		Y := standardExpSample(dim)

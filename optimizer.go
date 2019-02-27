@@ -1,25 +1,28 @@
-// brent.go
+// optimizer.go
 
 package gopula
 
 import (
 	"errors"
 	"math"
+
+	"gonum.org/v1/gonum/optimize"
 )
 
 var (
 	// Eps is the machine floating-point precision
 	Eps = 3.e-8
-	// MaxIt is the maximum allowed number of iterations
-	MaxIt = 200
+	// MaxFunEval is the maximum allowed number of iterations
+	MaxFunEval = 100
 )
 
 // ObjectiveFunction defines a function to minimize
 type ObjectiveFunction func(x float64, args interface{}) float64
 
 // BrentMinimizer minimizes the function f according to the Brent's method
-func BrentMinimizer(f ObjectiveFunction, args interface{}, a, b, t float64) (float64, float64, int) {
-	nit := 0
+func BrentMinimizer(f ObjectiveFunction, args interface{}, a, b, t float64) (float64, float64, int, error) {
+	fEvals := 0
+
 	var c, d, e, eps float64
 	var fu, fv, fw, fx float64
 	var m, p, q, r float64
@@ -41,11 +44,11 @@ func BrentMinimizer(f ObjectiveFunction, args interface{}, a, b, t float64) (flo
 	v = w
 	e = 0.0
 	fx = f(x, args)
+	fEvals++
 	fw = fx
 	fv = fw
 
-	for true {
-		nit++
+	for fEvals < MaxFunEval {
 		m = 0.5 * (sa + sb)
 		tol = eps*math.Abs(x) + t
 		t2 = 2.0 * tol
@@ -53,7 +56,7 @@ func BrentMinimizer(f ObjectiveFunction, args interface{}, a, b, t float64) (flo
 		//  Check the stopping criterion.
 		//
 		if math.Abs(x-m) <= t2-0.5*(sb-sa) {
-			return x, fx, nit
+			return x, fx, fEvals, nil
 		}
 		//
 		//  Fit a parabola.
@@ -116,6 +119,7 @@ func BrentMinimizer(f ObjectiveFunction, args interface{}, a, b, t float64) (flo
 		}
 
 		fu = f(u, args)
+		fEvals++
 		//
 		//  Update A, B, V, W, and X.
 		//
@@ -149,23 +153,9 @@ func BrentMinimizer(f ObjectiveFunction, args interface{}, a, b, t float64) (flo
 			}
 		}
 	}
-	return x, fx, nit
+
+	return x, fx, fEvals, errors.New("Maximum number of function evaluations reached")
 }
-
-// func swap(a, b float64) (float64, float64) {
-// 	return b, a
-// }
-
-// func inverseQuadraticInterpolation(a, b, c, fa, fb, fc float64) float64 {
-// 	dfab := fa - fb
-// 	dfac := fa - fc
-// 	dfbc := fb - fc
-// 	return (a*fb*fc)/(dfab*dfac) + (b*fa*fc)/(-dfab*dfbc) + (c*fa*fb)/(dfac*dfbc)
-// }
-
-// func secant(a, b, fa, fb float64) float64 {
-// 	return b - fb*(b-a)/(fb-fa)
-// }
 
 // BrentRootFinder finds a root of the the function f: x->f(x, args)
 // between x1 and x2 with the Van Wijngaarden–Dekker–Brent method.
@@ -173,8 +163,8 @@ func BrentMinimizer(f ObjectiveFunction, args interface{}, a, b, t float64) (flo
 // (p. 361, 362)
 func BrentRootFinder(f ObjectiveFunction, args interface{}, x1, x2, tol float64) (float64, error) {
 	Eps := 3.e-8
-	MaxIt := 200
-	var iter int
+	fEvals := 0
+
 	var d, e, min1, min2 float64
 	a := x1
 	b := x2
@@ -182,6 +172,7 @@ func BrentRootFinder(f ObjectiveFunction, args interface{}, x1, x2, tol float64)
 
 	fa := f(a, args)
 	fb := f(b, args)
+	fEvals += 2
 	var fc, p, q, r, s, tol1, xm float64
 
 	if (fa > 0.0 && fb > 0.0) || (fa < 0.0 && fb < 0.0) {
@@ -189,7 +180,7 @@ func BrentRootFinder(f ObjectiveFunction, args interface{}, x1, x2, tol float64)
 	}
 
 	fc = fb
-	for iter = 1; iter <= MaxIt; iter++ {
+	for fEvals < MaxFunEval {
 		if (fb > 0.0 && fc > 0.0) || (fb < 0.0 && fc < 0.0) {
 			//  Rename a, b, c and adjust bounding interval
 			c = a
@@ -262,26 +253,33 @@ func BrentRootFinder(f ObjectiveFunction, args interface{}, x1, x2, tol float64)
 			}
 		}
 		fb = f(b, args)
+		fEvals++
 	}
-	return 0., errors.New("Maximum number of iterations exceeded in zbrent")
+	return 0., errors.New("Maximum number of function evaluations reached")
 }
 
 // Bisection finds a root without derivatives
 func Bisection(f ObjectiveFunction, args interface{}, x1, x2, tol float64) (float64, error) {
+	fEvals := 0
+
 	a := math.Min(x1, x2)
 	b := math.Max(x1, x2)
-	// fmt.Println(a, b)
+
 	fa := f(a, args)
 	fb := f(b, args)
+	fEvals += 2
+
 	var m, fm float64
 	if fa*fb > 0 {
 		return 0., errors.New("Root must be bracketed in bisection")
 	}
 
-	nit := 0
-	for (b-a) > tol && nit < 100 {
+	for (b-a) > tol && fEvals < MaxFunEval {
 		m = (a + b) / 2.
+
 		fm = f(m, args)
+		fEvals++
+
 		if fa*fm <= 0 {
 			b = m
 			fb = fm
@@ -289,7 +287,25 @@ func Bisection(f ObjectiveFunction, args interface{}, x1, x2, tol float64) (floa
 			a = m
 			fa = fm
 		}
-		nit++
+
+	}
+
+	if fEvals >= MaxFunEval {
+		return b, errors.New("Maximum number of function evaluations reached")
 	}
 	return b, nil
+}
+
+// BFGS uses the BFGS algorithm to find the minimum of a function
+func BFGS(f ObjectiveFunction, args interface{}, x0 float64) (float64, float64, int, error) {
+	p := optimize.Problem{
+		Func: func(x []float64) float64 {
+			return f(x[0], args)
+		},
+	}
+	s := optimize.Settings{
+		FuncEvaluations: MaxFunEval,
+	}
+	result, err := optimize.Minimize(p, []float64{x0}, &s, nil)
+	return result.X[0], result.F, result.Stats.FuncEvaluations, err
 }

@@ -11,7 +11,7 @@ type Clayton struct{}
 
 // ThetaBounds returns the range where the copula is well defined
 func (c *Clayton) ThetaBounds() (float64, float64) {
-	return 0., Inf
+	return 1.e-10, Inf
 }
 
 // Psi is the generating function of the copula
