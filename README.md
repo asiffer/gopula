@@ -2,7 +2,7 @@
 
 ## Introduction
 
-`gopula` is a pure Go package aimed to deal with Archimedean Copulas. It implements the well known families: Ali-Mikhail-Haq, Clayton, Frank, Gumbel and Joe. 
+`gopula` is a pure Go package aimed to deal with Archimedean Copulas. It implements the well known families: Ali-Mikhail-Haq, Clayton, Frank, Gumbel and Joe.
 
 Currently `gopula` has three main features:
  - Basic computations (pdf, cdf, etc.)
@@ -83,7 +83,9 @@ $ wc -l /tmp/data.csv
 
 ### Inference
 
-Despite Archimedean copulas is quite a rich class of copulas with a great deal of nice properties, estimating the single parameter 𝜃 from observations is not so easy. Many techniques exist but `gopula` uses Maximum Likelihood Estimation as it performs rather the best (see the work of Marius Hofert, Martin Mächler and Alexander J. McNeil in [references](#references))
+Despite Archimedean copulas is quite a rich class of copulas with a great deal of nice properties, estimating the single parameter 𝜃 from observations is not so easy. Many techniques exist but `gopula` uses Maximum Likelihood Estimation as it performs rather the best (see the work of Marius Hofert, Martin Mächler and Alexander J. McNeil in [[2]](#references)).
+
+The inference procedure mainly uses the formulas provided by the authors mentionned above (see [[3]](#references))
 
 ```go
 // inference.go
@@ -129,8 +131,14 @@ We can notice that 𝜃* is quite close to those we used to generate the data (t
 The sampling may output out-of-bounds data (coordinates higher than 1). It occurs when the radial quantile function fails. As it uses a bisection search, it is probably due to a lack of function evaluations. You can increase it through the variable `gopula.MaxFunEvals`. 
 
 
+## Next
+
+I am currently implementing a kind of "margin" object aimed to represent an empirical cumulative distribution function (ecdf). In fact, most of the time, you have not uniform margins necessary to fit a copula so you need to transform the real margins with their ecdf (see [wikipedia](https://en.wikipedia.org/wiki/Copula_(probability_theory))).
+
 ## References
 
 [[1]](https://projecteuclid.org/download/pdfview_1/euclid.aos/1247836677) McNeil, A. J., & Nešlehová, J. (2009). Multivariate Archimedean copulas, d-monotone functions and ℓ1-norm symmetric distributions. The Annals of Statistics, 37(5B), 3059-3097.
 
 [[2]](https://arxiv.org/pdf/1207.1708) Hofert, M., Mächler, M., & McNeil, A. J. (2012). Estimators for Archimedean copulas in high dimensions. arXiv preprint arXiv:1207.1708.
+
+[[3]](https://www.sciencedirect.com/science/article/pii/S0047259X12000607) Hofert, M., Mächler, M., & Mcneil, A. J. (2012). Likelihood inference for Archimedean copulas in high dimensions under known margins. Journal of Multivariate Analysis, 110, 133-150.
