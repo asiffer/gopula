@@ -13,7 +13,7 @@ var (
 	// Eps is the machine floating-point precision
 	Eps = 3.e-8
 	// MaxFunEval is the maximum allowed number of iterations
-	MaxFunEval = 100
+	MaxFunEval = 200
 )
 
 // ObjectiveFunction defines a function to minimize

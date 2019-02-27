@@ -22,7 +22,7 @@ var (
 	stirlingFirstKind  = mat.NewDense(MaxDim, MaxDim, nil)
 	stirlingSecondKind = mat.NewDense(MaxDim, MaxDim, nil)
 	// Inf is a 'big' value (for optimizing bound purpose)
-	Inf = 14.
+	Inf = 15.
 )
 
 func init() {
