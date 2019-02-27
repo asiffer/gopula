@@ -198,7 +198,7 @@ func (arch *ArchimedeanCopula) Fit(M *mat.Dense) *FitResult {
 	var msg string
 	a, b := arch.copula.ThetaBounds()
 	thetaBest, llhood, feval, err := BrentMinimizer(arch.logLikelihoodToMinimize, M, a, b, 1e-5)
-	if math.Min(math.Abs(thetaBest-a), math.Abs(thetaBest-a)) < 1e-3 {
+	if math.Min(math.Abs(thetaBest-a), math.Abs(thetaBest-b)) < 1e-2 {
 		msg = "Falling back to BFGS."
 		thetaBest, llhood, feval, err = BFGS(arch.logLikelihoodToMinimize, M, 0.5*(a+b))
 	}
@@ -257,7 +257,7 @@ func (arch *ArchimedeanCopula) RadialPpf(p float64, dim int) float64 {
 		// we know that the cdf is an increasing function
 		// so using the bisection algorithm seems enough
 		// to find the right quantile
-		root, err := Bisection(fun, nil, a, b, 5e-7)
+		root, err := Bisection(fun, nil, a, b, 1e-6)
 		if err != nil {
 			fmt.Println(err)
 			return -1.
