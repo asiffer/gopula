@@ -195,7 +195,7 @@ func (arch *ArchimedeanCopula) logLikelihoodToMinimize(theta float64, args inter
 // Fit estimates the best theta parameter through maximum likelihood
 // estimation according to the input observations
 func (arch *ArchimedeanCopula) Fit(M *mat.Dense) *FitResult {
-	var msg string
+	msg := ""
 	a, b := arch.copula.ThetaBounds()
 	thetaBest, llhood, feval, err := BrentMinimizer(arch.logLikelihoodToMinimize, M, a, b, 1e-5)
 	if math.Min(math.Abs(thetaBest-a), math.Abs(thetaBest-b)) < 1e-2 {
@@ -252,7 +252,7 @@ func (arch *ArchimedeanCopula) RadialPpf(p float64, dim int) float64 {
 		b := 0.5
 		for fun(b, nil) < 0 {
 			a = b
-			b = 2 * b
+			b = 2. * b
 		}
 		// we know that the cdf is an increasing function
 		// so using the bisection algorithm seems enough
@@ -276,8 +276,8 @@ func (arch *ArchimedeanCopula) Sample(size int, dim int) *mat.Dense {
 		Y := standardExpSample(dim)
 		Sd := scalarDiv(Y, sum(Y))
 		R := arch.RadialPpf(U[i], dim)
-		if R == 0. {
-			fmt.Println(R, Sd, U[i], arch.RadialPpf(U[i], 3))
+		for R == -1. {
+			R = arch.RadialPpf(rand.Float64(), dim)
 		}
 		for j := 0; j < dim; j++ {
 			M.Set(i, j, arch.copula.Psi(R*Sd[j], arch.theta))
