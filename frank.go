@@ -9,6 +9,11 @@ import (
 // Frank defines the Frank copula
 type Frank struct{}
 
+// Family returns the name of the copula family
+func (c *Frank) Family() string {
+	return "Frank"
+}
+
 // ThetaBounds returns the range where the copula is well defined
 func (c *Frank) ThetaBounds() (float64, float64) {
 	return 0., Inf
@@ -32,28 +37,6 @@ func negativeIntegerPolylog(x float64, dim int) float64 {
 	}
 	return Li
 }
-
-// func joeCoeff(dim int, k int, alpha float64) float64 {
-// 	return stirlingSecondKind.At(dim, k+1) * math.Gamma(float64(k+1)-alpha) / math.Gamma(1.-alpha)
-// }
-
-// func joePolynom(x float64, dim int, alpha float64) float64 {
-// 	p := 0.
-// 	xk := 1.
-// 	for k := 0; k < dim; k++ {
-// 		p += joeCoeff(dim, k, alpha) * xk
-// 		xk = xk * x
-// 	}
-// 	return p
-// }
-
-// func joeH(vector []float64, dim int, theta float64) float64 {
-// 	h := 1.
-// 	for j := 0; j < dim; j++ {
-// 		h = h * (1 - math.Pow(1-vector[j], theta))
-// 	}
-// 	return h
-// }
 
 // PsiD is the d-th derivative of Psi
 func (c *Frank) PsiD(dim int, t float64, theta float64) float64 {

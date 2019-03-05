@@ -4,6 +4,7 @@ package gopula
 
 import (
 	"errors"
+	"fmt"
 	"math"
 
 	"gonum.org/v1/gonum/optimize"
@@ -154,7 +155,7 @@ func BrentMinimizer(f ObjectiveFunction, args interface{}, a, b, t float64) (flo
 		}
 	}
 
-	return x, fx, fEvals, errors.New("Maximum number of function evaluations reached")
+	return x, fx, fEvals, fmt.Errorf("Maximum number of function evaluations reached")
 }
 
 // BrentRootFinder finds a root of the the function f: x->f(x, args)
@@ -255,7 +256,7 @@ func BrentRootFinder(f ObjectiveFunction, args interface{}, x1, x2, tol float64)
 		fb = f(b, args)
 		fEvals++
 	}
-	return 0., errors.New("Maximum number of function evaluations reached")
+	return 0., fmt.Errorf("Maximum number of function evaluations reached")
 }
 
 // Bisection finds a root without derivatives
@@ -291,7 +292,7 @@ func Bisection(f ObjectiveFunction, args interface{}, x1, x2, tol float64) (floa
 	}
 
 	if fEvals >= MaxFunEval {
-		return b, errors.New("Maximum number of function evaluations reached")
+		return b, fmt.Errorf("Maximum number of function evaluations reached")
 	}
 	return b, nil
 }

@@ -9,6 +9,11 @@ import (
 // AMH defines the AMH copula
 type AMH struct{}
 
+// Family returns the name of the copula family
+func (c *AMH) Family() string {
+	return "AMH"
+}
+
 // ThetaBounds returns the range where the copula is well defined
 func (c *AMH) ThetaBounds() (float64, float64) {
 	return 0., 1.

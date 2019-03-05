@@ -37,18 +37,11 @@ func PrecomputeStirlingNumbers() {
 	stirlingSecondKind.Set(0, 0, 1.)
 	for i := 1; i < MaxDim; i++ {
 		for j := 1; j < MaxDim; j++ {
-			// if i == 0 && j == 0 {
-			// 	stirlingFirstKind.Set(i, j, 1.)
-			// 	stirlingSecondKind.Set(i, j, 1.)
-			// } else if i == 0 || j == 0 {
-			// 	stirlingFirstKind.Set(i, j, 0.)
-			// 	stirlingSecondKind.Set(i, j, 0.)
-			// } else {
+
 			sfk := stirlingFirstKind.At(i-1, j-1) - float64(i-1)*stirlingFirstKind.At(i-1, j)
 			stirlingFirstKind.Set(i, j, sfk)
 			ssk := stirlingSecondKind.At(i-1, j-1) + float64(j)*stirlingSecondKind.At(i-1, j)
 			stirlingSecondKind.Set(i, j, ssk)
-			// }
 
 		}
 	}
@@ -90,6 +83,7 @@ type ArchimedeanCopula struct {
 // ArchimedeanCopuler is an interface to implement
 // an archimedean copula
 type ArchimedeanCopuler interface {
+	Family() string
 	ThetaBounds() (float64, float64)
 	Psi(t float64, theta float64) float64
 	PsiInv(t float64, theta float64) float64
@@ -137,6 +131,11 @@ func NewCopula(family string, theta float64) *ArchimedeanCopula {
 	}
 }
 
+// Family returns the name of the copula family
+func (arch *ArchimedeanCopula) Family() string {
+	return arch.copula.Family()
+}
+
 // Cdf computes the cumulative distribution function
 // of the copula
 func (arch *ArchimedeanCopula) Cdf(vector []float64) float64 {
@@ -160,6 +159,10 @@ func (arch *ArchimedeanCopula) LogLikelihood(M *mat.Dense) float64 {
 	ll := 0.
 	for i := 0; i < nObs; i++ {
 		ll += arch.LogPdf(M.RawRowView(i))
+		if math.IsNaN(ll) {
+			fmt.Println(M.RawRowView(i))
+			return ll
+		}
 	}
 	return ll
 }
@@ -259,7 +262,6 @@ func (arch *ArchimedeanCopula) RadialPpf(p float64, dim int) float64 {
 		// to find the right quantile
 		root, err := Bisection(fun, nil, a, b, 1e-6)
 		if err != nil {
-			fmt.Println(err)
 			return -1.
 		}
 		return root

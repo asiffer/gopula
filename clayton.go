@@ -9,6 +9,11 @@ import (
 // Clayton defines the clayton copula
 type Clayton struct{}
 
+// Family returns the name of the copula family
+func (c *Clayton) Family() string {
+	return "Clayton"
+}
+
 // ThetaBounds returns the range where the copula is well defined
 func (c *Clayton) ThetaBounds() (float64, float64) {
 	return 1.e-10, Inf

@@ -80,13 +80,10 @@ func prod(v []float64) float64 {
 	return p
 }
 
-func copy(v []float64) []float64 {
-	size := len(v)
-	cp := zeros(size)
-	for i := 0; i < size; i++ {
-		cp[i] = v[i]
-	}
-	return cp
+func createCopy(v []float64) []float64 {
+	output := make([]float64, len(v))
+	copy(output, v)
+	return output
 }
 
 func cat(base []float64, add []float64) []float64 {
@@ -94,7 +91,8 @@ func cat(base []float64, add []float64) []float64 {
 }
 
 func scalarMul(v []float64, lambda float64) []float64 {
-	output := copy(v)
+
+	output := createCopy(v)
 	for i := 0; i < len(v); i++ {
 		output[i] = output[i] * lambda
 	}
@@ -102,7 +100,7 @@ func scalarMul(v []float64, lambda float64) []float64 {
 }
 
 func scalarAdd(v []float64, c float64) []float64 {
-	output := copy(v)
+	output := createCopy(v)
 	for i := 0; i < len(v); i++ {
 		output[i] = v[i] + c
 	}
@@ -118,7 +116,7 @@ func scalarSub(v []float64, c float64) []float64 {
 }
 
 func pow(v []float64, e float64) []float64 {
-	output := copy(v)
+	output := createCopy(v)
 	for i := 0; i < len(v); i++ {
 		output[i] = math.Pow(v[i], e)
 	}
@@ -126,7 +124,7 @@ func pow(v []float64, e float64) []float64 {
 }
 
 func log(v []float64) []float64 {
-	output := copy(v)
+	output := createCopy(v)
 	for i := 0; i < len(v); i++ {
 		output[i] = math.Log(v[i])
 	}

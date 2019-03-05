@@ -9,6 +9,11 @@ import (
 // Gumbel defines the Gumbel copula
 type Gumbel struct{}
 
+// Family returns the name of the copula family
+func (c *Gumbel) Family() string {
+	return "Gumbel"
+}
+
 // ThetaBounds returns the range where the copula is well defined
 func (c *Gumbel) ThetaBounds() (float64, float64) {
 	return 1., Inf

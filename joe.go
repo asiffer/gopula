@@ -9,6 +9,11 @@ import (
 // Joe defines the Joe copula
 type Joe struct{}
 
+// Family returns the name of the copula family
+func (c *Joe) Family() string {
+	return "Joe"
+}
+
 // ThetaBounds returns the range where the copula is well defined
 func (c *Joe) ThetaBounds() (float64, float64) {
 	return 1., Inf
