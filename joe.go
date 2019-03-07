@@ -3,6 +3,7 @@
 package gopula
 
 import (
+	"fmt"
 	"math"
 )
 
@@ -82,9 +83,17 @@ func (c *Joe) Pdf(vector []float64, theta float64) float64 {
 	if min(vector) == 0. {
 		return 0.
 	}
+
 	dim := len(vector)
 	dimF := float64(dim)
 	alpha := 1. / theta
+
+	if min(vector) >= 0.96 {
+		epsilon := 1 - mean(vector)
+		return math.Pow(theta, dimF-1.) *
+			math.Pow(dimF, alpha-dimF) *
+			math.Pow(epsilon, 1-dimF)
+	}
 
 	h := 1.
 	num := 1.
@@ -105,6 +114,13 @@ func (c *Joe) LogPdf(vector []float64, theta float64) float64 {
 	dimF := float64(dim)
 	alpha := 1. / theta
 
+	if min(vector) >= 0.96 {
+		epsilon := 1 - mean(vector)
+		return (dimF-1)*math.Log(theta) -
+			(dimF-alpha)*math.Log(dimF) -
+			(dimF-1)*math.Log(epsilon)
+	}
+
 	s1 := (dimF - 1) * math.Log(theta)
 	s2 := 0.
 
@@ -117,6 +133,10 @@ func (c *Joe) LogPdf(vector []float64, theta float64) float64 {
 
 	s3 := (1 - alpha) * math.Log(1-h)
 	s4 := math.Log(joePolynom(h/(1-h), dim, alpha))
+
+	if math.IsInf(s3, 1) || math.IsInf(s3, -1) {
+		fmt.Println(s4, h, vector)
+	}
 
 	return s1 + s2 - s3 + s4
 }

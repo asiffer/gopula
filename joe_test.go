@@ -9,7 +9,9 @@ import (
 )
 
 var (
-	joeSample = "resources/joe_7.50.csv"
+	thetaSample = 7.50
+	sampleSize  = 10000
+	joeSample   = fmt.Sprintf("resources/joe_%.2f.csv", thetaSample)
 )
 
 func TestInitJoe(t *testing.T) {
@@ -93,15 +95,15 @@ func TestJoeRadialPpf(t *testing.T) {
 }
 
 func TestJoeSampling(t *testing.T) {
-	theta := 7.5
-	AC := NewCopula("joe", theta)
+	// theta := 7.50
+	AC := NewCopula("joe", thetaSample)
 
 	checkTitle("Checking sampling...")
-	M := AC.Sample(9000, 3)
+	M := AC.Sample(sampleSize, 3)
 	result := AC.Fit(M)
 
-	if math.Abs(AC.theta-theta) > 0.15 {
-		t.Errorf("Bad MLE fit, expected theta* = %.3f, got %.3f", theta, AC.theta)
+	if math.Abs(AC.theta-thetaSample) > 0.15 {
+		t.Errorf("Bad MLE fit, expected theta* = %.3f, got %.3f", thetaSample, AC.theta)
 		testERROR()
 		fmt.Println(result)
 	} else {
@@ -122,8 +124,8 @@ func TestJoeMLE(t *testing.T) {
 	result := AC.Fit(M)
 	llFit := result.LogLikelihood
 
-	if math.Abs(AC.theta-7.5) > 0.15 {
-		t.Errorf("Bad MLE fit, expected theta* = 7.5, got %f", AC.theta)
+	if math.Abs(AC.theta-thetaSample) > 0.15 {
+		t.Errorf("Bad MLE fit, expected theta* = %f, got %f", thetaSample, AC.theta)
 		testERROR()
 		fmt.Println(result)
 	} else {

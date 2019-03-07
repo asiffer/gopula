@@ -75,6 +75,14 @@ func sum(v []float64) float64 {
 	return s
 }
 
+func mean(v []float64) float64 {
+	s := 0.
+	for _, x := range v {
+		s += x
+	}
+	return s / float64(len(v))
+}
+
 func prod(v []float64) float64 {
 	p := 1.
 	for _, x := range v {

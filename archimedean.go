@@ -22,7 +22,7 @@ var (
 	stirlingFirstKind  = mat.NewDense(MaxDim, MaxDim, nil)
 	stirlingSecondKind = mat.NewDense(MaxDim, MaxDim, nil)
 	// Inf is a 'big' value (for optimizing bound purpose)
-	Inf = 10.
+	Inf = 15.
 )
 
 func init() {
@@ -178,14 +178,22 @@ func (arch *ArchimedeanCopula) LogLikelihood(M *mat.Dense) float64 {
 // theta must be the fitted value.
 func (arch *ArchimedeanCopula) ConfidenceBounds(M *mat.Dense, level float64) (float64, float64) {
 	ll := arch.LogLikelihood(M)
-	cs := distuv.ChiSquared{K: 1, Src: nil}
+	cs := distuv.ChiSquared{K: 1}
 	q := cs.Quantile(level)
 	fun := func(x float64, args interface{}) float64 {
 		return arch.logLikelihoodToMinimize(x, M) + (ll - q/2)
 	}
 	maxDown, maxUp := arch.copula.ThetaBounds()
-	thetaUp, _ := Bisection(fun, nil, arch.theta, maxUp, 1e-8)
-	thetaDown, _ := Bisection(fun, nil, maxDown, arch.theta, 1e-8)
+	// maxUp = arch.theta + 2.
+	thetaUp, err := Bisection(fun, nil, arch.theta, maxUp, 1e-8)
+	if err != nil {
+		fmt.Println(err)
+		fmt.Println(fun(arch.theta, nil), fun(maxUp, nil))
+	}
+	thetaDown, err := Bisection(fun, nil, maxDown, arch.theta, 1e-8)
+	if err != nil {
+		fmt.Println(err)
+	}
 	return thetaDown, thetaUp
 }
 
@@ -196,10 +204,7 @@ func (arch *ArchimedeanCopula) logLikelihoodToMinimize(theta float64, args inter
 	ll := 0.
 	for i := 0; i < nObs; i++ {
 		lpdf := arch.copula.LogPdf(M.RawRowView(i), theta)
-		if math.IsNaN(lpdf) {
-			// fmt.Printf("\nNaN logpdf with %v (pdf = %.3f)\n", M.RawRowView(i), arch.copula.Pdf(M.RawRowView(i), theta))
-			// return math.Inf(1)
-		} else {
+		if !math.IsNaN(lpdf) {
 			ll += lpdf
 		}
 
@@ -214,10 +219,10 @@ func (arch *ArchimedeanCopula) logLikelihoodToMinimize(theta float64, args inter
 func (arch *ArchimedeanCopula) Fit(M *mat.Dense) *FitResult {
 	msg := ""
 	a, b := arch.copula.ThetaBounds()
-	thetaBest, llhood, feval, err := BrentMinimizer(arch.logLikelihoodToMinimize, M, a, b, 1e-6)
+	thetaBest, llhood, feval, err := BrentMinimizer(arch.logLikelihoodToMinimize, M, a, b, 1e-8)
 	if math.Min(math.Abs(thetaBest-a), math.Abs(thetaBest-b)) < 1e-2 {
 		msg = "Falling back to BFGS. "
-		thetaBest, llhood, feval, err = BFGS(arch.logLikelihoodToMinimize, M, 0.4*(a+b))
+		thetaBest, llhood, feval, err = BFGS(arch.logLikelihoodToMinimize, M, 0.5*(a+b))
 	}
 	if err != nil {
 		msg += "Error: " + err.Error()
