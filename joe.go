@@ -88,7 +88,7 @@ func (c *Joe) Pdf(vector []float64, theta float64) float64 {
 	dimF := float64(dim)
 	alpha := 1. / theta
 
-	if min(vector) >= 0.96 {
+	if min(vector) >= 0.97 {
 		epsilon := 1 - mean(vector)
 		return math.Pow(theta, dimF-1.) *
 			math.Pow(dimF, alpha-dimF) *
@@ -114,13 +114,6 @@ func (c *Joe) LogPdf(vector []float64, theta float64) float64 {
 	dimF := float64(dim)
 	alpha := 1. / theta
 
-	if min(vector) >= 0.96 {
-		epsilon := 1 - mean(vector)
-		return (dimF-1)*math.Log(theta) -
-			(dimF-alpha)*math.Log(dimF) -
-			(dimF-1)*math.Log(epsilon)
-	}
-
 	s1 := (dimF - 1) * math.Log(theta)
 	s2 := 0.
 
@@ -129,6 +122,14 @@ func (c *Joe) LogPdf(vector []float64, theta float64) float64 {
 		s2 += math.Log(1 - vector[j])
 		h = h * (1 - math.Pow(1-vector[j], theta))
 	}
+
+	if h == 1. || min(vector) >= 0.97 {
+		// approximation
+		return (dimF-1)*math.Log(theta) -
+			(dimF-alpha)*math.Log(dimF) -
+			(dimF-1)*math.Log(1.-mean(vector))
+	}
+
 	s2 = (theta - 1) * s2
 
 	s3 := (1 - alpha) * math.Log(1-h)

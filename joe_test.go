@@ -9,8 +9,8 @@ import (
 )
 
 var (
-	thetaSample = 7.50
-	sampleSize  = 10000
+	thetaSample = 4.50
+	sampleSize  = 5000
 	joeSample   = fmt.Sprintf("resources/joe_%.2f.csv", thetaSample)
 )
 
@@ -124,7 +124,7 @@ func TestJoeMLE(t *testing.T) {
 	result := AC.Fit(M)
 	llFit := result.LogLikelihood
 
-	if math.Abs(AC.theta-thetaSample) > 0.15 {
+	if math.Abs(AC.theta-thetaSample)/thetaSample > 0.02 {
 		t.Errorf("Bad MLE fit, expected theta* = %f, got %f", thetaSample, AC.theta)
 		testERROR()
 		fmt.Println(result)
