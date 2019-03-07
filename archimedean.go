@@ -22,7 +22,7 @@ var (
 	stirlingFirstKind  = mat.NewDense(MaxDim, MaxDim, nil)
 	stirlingSecondKind = mat.NewDense(MaxDim, MaxDim, nil)
 	// Inf is a 'big' value (for optimizing bound purpose)
-	Inf = 15.
+	Inf = 10.
 )
 
 func init() {
@@ -107,7 +107,7 @@ func NewCopula(family string, theta float64) *ArchimedeanCopula {
 		if theta >= 1. {
 			return &ArchimedeanCopula{theta: theta, copula: cop}
 		}
-		return &ArchimedeanCopula{theta: 1., copula: cop}
+		return &ArchimedeanCopula{theta: 2., copula: cop}
 	case "frank", "Frank":
 		cop := &Frank{}
 		if theta > 0. {
@@ -136,6 +136,11 @@ func (arch *ArchimedeanCopula) Family() string {
 	return arch.copula.Family()
 }
 
+// Theta returns the current value of 𝜃
+func (arch *ArchimedeanCopula) Theta() float64 {
+	return arch.theta
+}
+
 // Cdf computes the cumulative distribution function
 // of the copula
 func (arch *ArchimedeanCopula) Cdf(vector []float64) float64 {
@@ -158,10 +163,11 @@ func (arch *ArchimedeanCopula) LogLikelihood(M *mat.Dense) float64 {
 	nObs, _ := M.Dims()
 	ll := 0.
 	for i := 0; i < nObs; i++ {
-		ll += arch.LogPdf(M.RawRowView(i))
-		if math.IsNaN(ll) {
-			fmt.Println(M.RawRowView(i))
-			return ll
+		lpdf := arch.LogPdf(M.RawRowView(i))
+		if math.IsNaN(lpdf) {
+			// fmt.Println("NaN likelihood with ", M.RawRowView(i))
+		} else {
+			ll += lpdf
 		}
 	}
 	return ll
@@ -189,7 +195,15 @@ func (arch *ArchimedeanCopula) logLikelihoodToMinimize(theta float64, args inter
 	nObs, _ := M.Dims()
 	ll := 0.
 	for i := 0; i < nObs; i++ {
-		ll += arch.copula.LogPdf(M.RawRowView(i), theta)
+		lpdf := arch.copula.LogPdf(M.RawRowView(i), theta)
+		if math.IsNaN(lpdf) {
+			// fmt.Printf("\nNaN logpdf with %v (pdf = %.3f)\n", M.RawRowView(i), arch.copula.Pdf(M.RawRowView(i), theta))
+			// return math.Inf(1)
+		} else {
+			ll += lpdf
+		}
+
+		// ll += arch.copula.LogPdf(M.RawRowView(i), theta)
 	}
 	// we return the opposite of the loglikelihood (for minimization)
 	return -ll
@@ -200,13 +214,13 @@ func (arch *ArchimedeanCopula) logLikelihoodToMinimize(theta float64, args inter
 func (arch *ArchimedeanCopula) Fit(M *mat.Dense) *FitResult {
 	msg := ""
 	a, b := arch.copula.ThetaBounds()
-	thetaBest, llhood, feval, err := BrentMinimizer(arch.logLikelihoodToMinimize, M, a, b, 1e-5)
+	thetaBest, llhood, feval, err := BrentMinimizer(arch.logLikelihoodToMinimize, M, a, b, 1e-6)
 	if math.Min(math.Abs(thetaBest-a), math.Abs(thetaBest-b)) < 1e-2 {
-		msg = "Falling back to BFGS."
-		thetaBest, llhood, feval, err = BFGS(arch.logLikelihoodToMinimize, M, 0.5*(a+b))
+		msg = "Falling back to BFGS. "
+		thetaBest, llhood, feval, err = BFGS(arch.logLikelihoodToMinimize, M, 0.4*(a+b))
 	}
 	if err != nil {
-		msg += " Error: " + err.Error()
+		msg += "Error: " + err.Error()
 	} else {
 		msg += "Success"
 	}
@@ -227,44 +241,75 @@ func (arch *ArchimedeanCopula) RadialCdf(x float64, dim int) float64 {
 	if x <= 0. {
 		return 0.
 	}
-	cdfx := 1. - arch.copula.Psi(x, arch.theta)
-	psid := arch.copula.PsiD(dim-1, x, arch.theta)
+
 	dimF := float64(dim)
-	if psid > 0 {
-		if dim%2 == 0 {
-			cdfx = cdfx + math.Pow(x, dimF-1.)*psid/float64(factorial(dim-1))
-		} else {
-			cdfx = cdfx - math.Pow(x, dimF-1.)*psid/float64(factorial(dim-1))
-		}
+	coeff := 1.
+	if (dim-1)%2 == 0 {
+		coeff = -1.
 	}
+	psid := arch.copula.PsiD(dim-1, x, arch.theta)
+	cdfx := 1. - arch.copula.Psi(x, arch.theta) + coeff*math.Pow(x, dimF-1.)*math.Max(0., psid)/float64(factorial(dim-1))
+	// if psid > 0 {
+	// 	if dim%2 == 0 {
+	// 		cdfx = cdfx + math.Pow(x, dimF-1.)*psid/float64(factorial(dim-1))
+	// 	} else {
+	// 		cdfx = cdfx - math.Pow(x, dimF-1.)*psid/float64(factorial(dim-1))
+	// 	}
+	// }
 	f := 1.0
 	for k := 1; k < dim-1; k++ {
-		f = f * (-1.0 / float64(k))
-		cdfx = cdfx - f*math.Pow(x, float64(k))*arch.copula.PsiD(k, x, arch.theta)
+		// f = f * (-1.0 / float64(k))
+		// cdfx = cdfx - f*math.Pow(x, float64(k))*arch.copula.PsiD(k, x, arch.theta)
+		f = f * (-x) / float64(k)
+		cdfx = cdfx - f*arch.copula.PsiD(k, x, arch.theta)
 	}
 	return cdfx
 }
 
 // RadialPpf computes the quantile zp verifying P(X<zp) = p
 func (arch *ArchimedeanCopula) RadialPpf(p float64, dim int) float64 {
+	c := 0.95
 	if p > 0. && p < 1. {
-		fun := func(z float64, args interface{}) float64 {
-			return arch.RadialCdf(z, dim) - p
-		}
-		a := 0.
-		b := 0.5
-		for fun(b, nil) < 0 {
-			a = b
-			b = 2. * b
-		}
+		// fun := func(z float64, args interface{}) float64 {
+		// 	return arch.RadialCdf(z, dim) - p
+		// }
+
 		// we know that the cdf is an increasing function
 		// so using the bisection algorithm seems enough
 		// to find the right quantile
-		root, err := Bisection(fun, nil, a, b, 1e-6)
+		var tol float64
+		switch arch.Family() {
+		case "Joe":
+			tol = 1e-10
+			c = 1.25
+		case "Clayton":
+			tol = 1e-6
+		default:
+			tol = 1e-8
+		}
+
+		fun := func(z float64, args interface{}) float64 {
+			return arch.RadialCdf(math.Pow(z, c), dim) - p
+		}
+
+		a := 0.
+		b := 0.2
+		for fun(b, nil) < 0. {
+			a = b
+			b = 2. * b
+		}
+
+		// root, _, _, err := BFGS(fun2, nil, 0.5*(a+b))
+		root, err := Bisection(fun, nil, a, b, tol)
+		// root, err := FalsePosition(fun, nil, a, b, tol)
+		// root, err := BrentRootFinder(fun, nil, a, b, tol)
 		if err != nil {
+			fmt.Println(err)
 			return -1.
 		}
-		return root
+		return math.Pow(root, c)
+		// return root
+
 	}
 	return -1.
 }
@@ -273,17 +318,23 @@ func (arch *ArchimedeanCopula) RadialPpf(p float64, dim int) float64 {
 func (arch *ArchimedeanCopula) Sample(size int, dim int) *mat.Dense {
 	M := mat.NewDense(size, dim, nil)
 
+	// r := make([]float64, 0)
+
 	U := uniformSample(size)
 	for i := 0; i < size; i++ {
 		Y := standardExpSample(dim)
 		Sd := scalarDiv(Y, sum(Y))
 		R := arch.RadialPpf(U[i], dim)
-		for R == -1. {
+		for R < 0. {
+			fmt.Println("U = ", U[i])
 			R = arch.RadialPpf(rand.Float64(), dim)
 		}
+		// r = append(r, R)
 		for j := 0; j < dim; j++ {
 			M.Set(i, j, arch.copula.Psi(R*Sd[j], arch.theta))
 		}
 	}
+
+	// Hist(r, 50, "resources/"+arch.copula.Family()+".png")
 	return M
 }

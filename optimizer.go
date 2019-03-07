@@ -14,14 +14,22 @@ var (
 	// Eps is the machine floating-point precision
 	Eps = 3.e-8
 	// MaxFunEval is the maximum allowed number of iterations
-	MaxFunEval = 200
+	MaxFunEval = 500
 )
 
 // ObjectiveFunction defines a function to minimize
 type ObjectiveFunction func(x float64, args interface{}) float64
 
+// -------------------------------------------------------------------------- //
+// ------------------------------- MINIMIZERS ------------------------------- //
+// -------------------------------------------------------------------------- //
+
 // BrentMinimizer minimizes the function f according to the Brent's method
-func BrentMinimizer(f ObjectiveFunction, args interface{}, a, b, t float64) (float64, float64, int, error) {
+func BrentMinimizer(f ObjectiveFunction,
+	args interface{},
+	a,
+	b,
+	t float64) (float64, float64, int, error) {
 	fEvals := 0
 
 	var c, d, e, eps float64
@@ -157,6 +165,25 @@ func BrentMinimizer(f ObjectiveFunction, args interface{}, a, b, t float64) (flo
 
 	return x, fx, fEvals, fmt.Errorf("Maximum number of function evaluations reached")
 }
+
+// BFGS uses the gonum implementation of the BFGS algorithm to find the minimum of a function
+// without constraints
+func BFGS(f ObjectiveFunction, args interface{}, x0 float64) (float64, float64, int, error) {
+	p := optimize.Problem{
+		Func: func(x []float64) float64 {
+			return f(x[0], args)
+		},
+	}
+	s := optimize.Settings{
+		FuncEvaluations: MaxFunEval,
+	}
+	result, err := optimize.Minimize(p, []float64{x0}, &s, nil)
+	return result.X[0], result.F, result.Stats.FuncEvaluations, err
+}
+
+// -------------------------------------------------------------------------- //
+// ------------------------------ ROOT-FINDERS ------------------------------ //
+// -------------------------------------------------------------------------- //
 
 // BrentRootFinder finds a root of the the function f: x->f(x, args)
 // between x1 and x2 with the Van Wijngaarden–Dekker–Brent method.
@@ -297,16 +324,40 @@ func Bisection(f ObjectiveFunction, args interface{}, x1, x2, tol float64) (floa
 	return b, nil
 }
 
-// BFGS uses the BFGS algorithm to find the minimum of a function
-func BFGS(f ObjectiveFunction, args interface{}, x0 float64) (float64, float64, int, error) {
-	p := optimize.Problem{
-		Func: func(x []float64) float64 {
-			return f(x[0], args)
-		},
+// Secant finds the root of a function func thought to lie between x1 and x2.
+// The root is refined until its accuracy is ±xacc.
+// The implementation directly comes from the book 'Numerical Recipes in C'
+// (p. 361, 362)
+func Secant(fun ObjectiveFunction, args interface{}, x1, x2, xacc float64) (float64, error) {
+	var j int
+	var fl, f, dx, xl, rts float64
+
+	fl = fun(x1, args)
+	f = fun(x2, args)
+	if math.Abs(fl) < math.Abs(f) {
+		//  Pick the bound with the smaller function value as
+		rts = x1
+		//  the most recent guess.
+		xl = x2
+		fl, f = f, fl
+	} else {
+		xl = x1
+		rts = x2
 	}
-	s := optimize.Settings{
-		FuncEvaluations: MaxFunEval,
+	for j = 1; j <= MaxFunEval; j++ {
+		//  Secant loop.
+		dx = (xl - rts) * f / (f - fl)
+		//  Increment with respect to latest value.
+		xl = rts
+		fl = f
+		rts += dx
+		f = fun(rts, args)
+		//  Convergence.
+		if math.Abs(dx) < xacc || f == 0.0 {
+			return rts, nil
+		}
+
 	}
-	result, err := optimize.Minimize(p, []float64{x0}, &s, nil)
-	return result.X[0], result.F, result.Stats.FuncEvaluations, err
+	return 0.0, fmt.Errorf("Maximum number of function evaluations reached")
+	//  Never get here.
 }

@@ -20,6 +20,11 @@ func fun0(x float64, k interface{}) float64 {
 	return -math.Pow(x, k.(float64)) * math.Exp(-x)
 }
 
+func funTestRoot(x float64, k interface{}) float64 {
+	kf := k.(float64)
+	return 1 - kf*math.Pow(x, kf)
+}
+
 func TestParabol(t *testing.T) {
 	min := 2.0
 	a := -10.
@@ -49,15 +54,66 @@ func TestFun0(t *testing.T) {
 	}
 }
 
-func TestRoot(t *testing.T) {
+func TestBrentRootFinder(t *testing.T) {
+	checkTitle("Testing Brent Root Finder...")
 	k := 7.0
-	a := -10.
-	b := 200.
+	a := -5.
+	b := 10.
+	tol := 1e-4
+
+	sol := math.Pow(1/k, 1/k)
+
+	root, err := BrentRootFinder(funTestRoot, k, a, b, tol)
+	if err != nil {
+		t.Log(err)
+	}
+	if math.Abs(root-sol) > tol {
+		testERROR()
+		t.Errorf("Root not found with given tolerance (expected %f, got %f)", sol, root)
+	} else {
+		testOK()
+	}
+}
+
+func TestBisection(t *testing.T) {
+	checkTitle("Testing Bisection...")
+	k := 7.0
+	a := -5.
+	b := 10.
 	tol := 1e-8
 
-	root, _ := BrentRootFinder(fun0, k, a, b, tol)
-	if (root - k) > tol {
-		t.Errorf("Minimum not found with given tolerance (expected %f, got %f)", k, root)
+	sol := math.Pow(1/k, 1/k)
+
+	root, err := Bisection(funTestRoot, k, a, b, tol)
+	if err != nil {
+		t.Log(err)
+	}
+	if math.Abs(root-sol) > tol {
+		testERROR()
+		t.Errorf("Root not found with given tolerance (expected %f, got %f)", sol, root)
+	} else {
+		testOK()
+	}
+}
+
+func TestSecant(t *testing.T) {
+	checkTitle("Testing Secant...")
+	k := 3.0
+	a := 0.1
+	b := 10.
+	tol := 1e-4
+
+	sol := math.Pow(1/k, 1/k)
+
+	root, err := Secant(funTestRoot, k, a, b, tol)
+	if err != nil {
+		t.Log(err)
+	}
+	if math.Abs(root-sol) > tol {
+		testERROR()
+		t.Errorf("Root not found with given tolerance (expected %f, got %f)", sol, root)
+	} else {
+		testOK()
 	}
 }
 

@@ -9,6 +9,9 @@ import (
 	"strings"
 
 	"gonum.org/v1/gonum/mat"
+	"gonum.org/v1/gonum/stat/distuv"
+	"gonum.org/v1/plot"
+	"gonum.org/v1/plot/plotter"
 )
 
 func zeros(n int) []float64 {
@@ -133,7 +136,7 @@ func log(v []float64) []float64 {
 
 func join(v []float64, sep string) string {
 	p := len(v)
-	format := "%f" + strings.Repeat(sep+"%f", p-1)
+	format := "%.10f" + strings.Repeat(sep+"%.10f", p-1)
 	iface := make([]interface{}, p)
 	for i := 0; i < p; i++ {
 		iface[i] = v[i]
@@ -162,10 +165,18 @@ func uniformSample(n int) []float64 {
 	return sample
 }
 
+// func standardExpSample(n int) []float64 {
+// 	sample := make([]float64, n)
+// 	for i := 0; i < n; i++ {
+// 		sample[i] = rand.ExpFloat64()
+// 	}
+// 	return sample
+// }
 func standardExpSample(n int) []float64 {
+	exp := distuv.Exponential{Rate: 1.}
 	sample := make([]float64, n)
 	for i := 0; i < n; i++ {
-		sample[i] = rand.ExpFloat64()
+		sample[i] = exp.Rand()
 	}
 	return sample
 }
@@ -177,4 +188,49 @@ func euclid(a int, b int) (int, int) {
 		return q, r
 	}
 	return 0, 0
+}
+
+// ---------- PLOT -------------- //
+
+// Hist plots an histogram
+func Hist(values []float64, bins int, path string) error {
+	V := plotter.Values(values)
+
+	var plt *plot.Plot
+	var hist *plotter.Histogram
+	var err error
+
+	plt, err = plot.New()
+	if err != nil {
+		return err
+	}
+	hist, err = plotter.NewHist(V, bins)
+	if err != nil {
+		return err
+	}
+	hist.Normalize(1)
+	plt.Add(hist)
+	return plt.Save(300, 300, path)
+}
+
+func rawCol(M *mat.Dense, j int) []float64 {
+	n, _ := M.Dims()
+	col := make([]float64, n)
+	for i := 0; i < n; i++ {
+		col[i] = M.At(i, j)
+	}
+	return col
+}
+
+func checkMargins(path string) {
+	M, err := LoadCSV(path, ',', false)
+	if err != nil {
+		return
+	}
+	_, p := M.Dims()
+	var ext string
+	for j := 0; j < p; j++ {
+		ext = fmt.Sprintf("_%d.png", j)
+		Hist(rawCol(M, j), 80, strings.Replace(path, ".csv", ext, -1))
+	}
 }

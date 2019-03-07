@@ -108,6 +108,7 @@ func TestJoeSampling(t *testing.T) {
 		SaveCSV(M, joeSample, ',')
 		testOK()
 	}
+	checkMargins(joeSample)
 }
 
 func TestJoeMLE(t *testing.T) {
@@ -138,3 +139,104 @@ func TestJoeMLE(t *testing.T) {
 		testOK()
 	}
 }
+
+func customRadialPPF(arch *ArchimedeanCopula, p float64, dim int) float64 {
+	c := 1.2
+	if p > 0. && p < 1. {
+		fun := func(z float64, args interface{}) float64 {
+			return arch.RadialCdf(math.Pow(z, c), dim) - p
+		}
+
+		// fun2 := func(z float64, args interface{}) float64 {
+		// 	f := fun(z, args)
+		// 	return f * f
+		// }
+
+		a := 0.
+		b := 1.
+		for fun(b, nil) < 0. {
+			a = b
+			b = 2. * b
+		}
+		// we know that the cdf is an increasing function
+		// so using the bisection algorithm seems enough
+		// to find the right quantile
+		var tol float64
+		switch arch.Family() {
+		case "Joe":
+			tol = 1e-13
+		case "Clayton":
+			tol = 1e-6
+		default:
+			tol = 1e-8
+		}
+		// root, _, _, err := BFGS(fun2, nil, 0.5*(a+b))
+		// root, err := Bisection(fun, nil, a, b, tol)
+		// root, err := FalsePosition(fun, nil, a, b, tol)
+		root, err := BrentRootFinder(fun, nil, a, b, tol)
+		if err != nil {
+			fmt.Println(err)
+			return -1.
+		}
+		return math.Pow(root, c)
+	}
+	return -1.
+}
+
+// func TestSolveJoeSampleProblem(t *testing.T) {
+// 	size := 50000
+// 	dim := 3
+// 	theta := 9.
+// 	arch := NewCopula("Joe", theta)
+// 	M := mat.NewDense(size, dim, nil)
+
+// 	// V := mat.NewDense(size, 2, nil)
+// 	// r := make([]float64, 0)
+
+// 	U := uniformSample(size)
+// 	for i := 0; i < size; i++ {
+// 		Y := standardExpSample(dim)
+// 		Sd := scalarDiv(Y, sum(Y))
+// 		R := customRadialPPF(arch, U[i], dim)
+// 		// R := arch.RadialPpf(U[i], dim)
+// 		for R < 0. {
+// 			fmt.Println("U = ", U[i])
+// 			// R = arch.RadialPpf(rand.Float64(), dim)
+// 			R = customRadialPPF(arch, U[i], dim)
+// 		}
+// 		// V.Set(i, 0, U[i])
+// 		// V.Set(i, 1, R)
+// 		// r = append(r, R)
+// 		for j := 0; j < dim; j++ {
+// 			M.Set(i, j, arch.copula.Psi(R*Sd[j], arch.theta))
+// 		}
+// 	}
+// 	path := fmt.Sprintf("resources/joe_%.2f.csv", theta)
+// 	SaveCSV(M, path, ',')
+// 	checkMargins(path)
+// 	// file := fmt.Sprintf("resources/rad_vs_unif_joe_%d_%d.csv", size, dim)
+// 	// SaveCSV(V, file, ',')
+
+// }
+
+// func TestSolveJoeSampleOptimizer(t *testing.T) {
+// 	dim := 3
+// 	arch := NewCopula("Joe", 7.5)
+
+// 	npts := 10000
+// 	xmax := 50.
+// 	xmin := 1e-15
+// 	fun := func(x float64) float64 {
+// 		return arch.RadialCdf(x, dim)
+// 	}
+
+// 	M := mat.NewDense(npts, 2, nil)
+// 	step := (xmax - xmin) / float64(npts)
+// 	x := xmin
+// 	for i := 0; i < npts; i++ {
+// 		M.Set(i, 0, x)
+// 		M.Set(i, 1, fun(x))
+// 		x += step
+// 	}
+// 	SaveCSV(M, "resources/joe_radial_cdf.csv", ',')
+// }

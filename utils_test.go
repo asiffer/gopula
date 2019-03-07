@@ -97,7 +97,7 @@ func TestScalarDiv(t *testing.T) {
 
 func TestJoin(t *testing.T) {
 	vector := []float64{0.5, 1, 2}
-	if join(vector, ",") != "0.500000,1.000000,2.000000" {
+	if join(vector, ",") != "0.5000000000,1.0000000000,2.0000000000" {
 		t.Errorf("Bad join: expected '0.500000,1.000000,2.000000', got %s", join(vector, ","))
 	}
 }

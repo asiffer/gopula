@@ -90,7 +90,7 @@ func (c *Joe) Pdf(vector []float64, theta float64) float64 {
 	num := 1.
 	for j := 0; j < dim; j++ {
 		h = h * (1 - math.Pow(1-vector[j], theta))
-		num = num * math.Pow(1-vector[j], theta-1.)
+		num = num * math.Pow(1-vector[j], theta-1)
 	}
 	return math.Pow(theta, dimF-1.) * num * joePolynom(h/(1.-h), dim, alpha) / math.Pow(1.-h, 1.-alpha)
 }
@@ -105,18 +105,18 @@ func (c *Joe) LogPdf(vector []float64, theta float64) float64 {
 	dimF := float64(dim)
 	alpha := 1. / theta
 
-	s1 := (dimF - 1.) * math.Log(theta)
+	s1 := (dimF - 1) * math.Log(theta)
 	s2 := 0.
 
 	h := 1.
 	for j := 0; j < dim; j++ {
-		s2 += math.Log(1. - vector[j])
-		h = h * (1 - math.Pow(1.-vector[j], theta))
+		s2 += math.Log(1 - vector[j])
+		h = h * (1 - math.Pow(1-vector[j], theta))
 	}
-	s2 = (theta - 1.) * s2
+	s2 = (theta - 1) * s2
 
-	s3 := (1. - alpha) * math.Log(1.-h)
-	s4 := math.Log(joePolynom(h/(1.-h), dim, alpha))
+	s3 := (1 - alpha) * math.Log(1-h)
+	s4 := math.Log(joePolynom(h/(1-h), dim, alpha))
 
 	return s1 + s2 - s3 + s4
 }
