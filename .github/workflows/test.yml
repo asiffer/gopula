@@ -1,0 +1,23 @@
+name: Test
+
+on:
+  pull_request:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      - name: Setup Go
+        uses: actions/setup-go@v6
+      - name: Run tests
+        run: go test -v -race -coverprofile=coverage.txt -covermode=atomic .
+      - name: Upload coverage to Codecov
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+        uses: codecov/codecov-action@v5

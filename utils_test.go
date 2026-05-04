@@ -7,10 +7,6 @@ import (
 	"testing"
 )
 
-var (
-	csv = "/home/asr/Documents/Work/go/src/gopula/clayton.csv"
-)
-
 func TestProd(t *testing.T) {
 	vector := []float64{1, 2, 3, 4, 5, 6}
 	p := prod(vector)
@@ -88,7 +84,7 @@ func TestPow(t *testing.T) {
 func TestScalarDiv(t *testing.T) {
 	vector := []float64{2., 4., 6., 8., 10.}
 	d := scalarDiv(vector, 2)
-	for i := 0; i < len(vector); i++ {
+	for i := range vector {
 		if d[i] != vector[i]/2. {
 			t.Errorf("bad division computation, expected %.1f, got %.1f", vector[i]/2., d[i])
 		}

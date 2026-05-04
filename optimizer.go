@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 
+	"gonum.org/v1/gonum/mat"
 	"gonum.org/v1/gonum/optimize"
 )
 
@@ -18,7 +19,7 @@ var (
 )
 
 // ObjectiveFunction defines a function to minimize
-type ObjectiveFunction func(x float64, args interface{}) float64
+type ObjectiveFunction func(x float64, M *mat.Dense) float64
 
 // -------------------------------------------------------------------------- //
 // ------------------------------- MINIMIZERS ------------------------------- //
@@ -26,7 +27,7 @@ type ObjectiveFunction func(x float64, args interface{}) float64
 
 // BrentMinimizer minimizes the function f according to the Brent's method
 func BrentMinimizer(f ObjectiveFunction,
-	args interface{},
+	args *mat.Dense,
 	a,
 	b,
 	t float64) (float64, float64, int, error) {
@@ -168,10 +169,10 @@ func BrentMinimizer(f ObjectiveFunction,
 
 // BFGS uses the gonum implementation of the BFGS algorithm to find the minimum of a function
 // without constraints
-func BFGS(f ObjectiveFunction, args interface{}, x0 float64) (float64, float64, int, error) {
+func BFGS(f ObjectiveFunction, M *mat.Dense, x0 float64) (float64, float64, int, error) {
 	p := optimize.Problem{
 		Func: func(x []float64) float64 {
-			return f(x[0], args)
+			return f(x[0], M)
 		},
 	}
 	s := optimize.Settings{
@@ -189,7 +190,7 @@ func BFGS(f ObjectiveFunction, args interface{}, x0 float64) (float64, float64, 
 // between x1 and x2 with the Van Wijngaarden–Dekker–Brent method.
 // The implementation directly comes from the book 'Numerical Recipes in C'
 // (p. 361, 362)
-func BrentRootFinder(f ObjectiveFunction, args interface{}, x1, x2, tol float64) (float64, error) {
+func BrentRootFinder(f ObjectiveFunction, args *mat.Dense, x1, x2, tol float64) (float64, error) {
 	Eps := 3.e-8
 	fEvals := 0
 
@@ -283,18 +284,18 @@ func BrentRootFinder(f ObjectiveFunction, args interface{}, x1, x2, tol float64)
 		fb = f(b, args)
 		fEvals++
 	}
-	return 0., fmt.Errorf("Maximum number of function evaluations reached")
+	return 0., fmt.Errorf("(brent) Maximum number of function evaluations reached")
 }
 
 // Bisection finds a root without derivatives
-func Bisection(f ObjectiveFunction, args interface{}, x1, x2, tol float64) (float64, error) {
+func Bisection(f ObjectiveFunction, M *mat.Dense, x1, x2, tol float64) (float64, error) {
 	fEvals := 0
 
 	a := math.Min(x1, x2)
 	b := math.Max(x1, x2)
 
-	fa := f(a, args)
-	fb := f(b, args)
+	fa := f(a, M)
+	fb := f(b, M)
 	fEvals += 2
 
 	var m, fm float64
@@ -302,10 +303,15 @@ func Bisection(f ObjectiveFunction, args interface{}, x1, x2, tol float64) (floa
 		return 0., errors.New("Root must be bracketed in bisection")
 	}
 
-	for (b-a) > tol && fEvals < MaxFunEval {
-		m = (a + b) / 2.
+	for fEvals < MaxFunEval {
+		m = a + (b-a)/2
 
-		fm = f(m, args)
+		// Check if root is found or if interval is too small
+		if m == a || m == b || math.Abs(b-a) < tol {
+			return m, nil
+		}
+
+		fm = f(m, M)
 		fEvals++
 
 		if fa*fm <= 0 {
@@ -319,7 +325,7 @@ func Bisection(f ObjectiveFunction, args interface{}, x1, x2, tol float64) (floa
 	}
 
 	if fEvals >= MaxFunEval {
-		return b, fmt.Errorf("Maximum number of function evaluations reached")
+		return b, fmt.Errorf("(bisection) Maximum number of function evaluations reached")
 	}
 	return b, nil
 }
@@ -328,7 +334,7 @@ func Bisection(f ObjectiveFunction, args interface{}, x1, x2, tol float64) (floa
 // The root is refined until its accuracy is ±xacc.
 // The implementation directly comes from the book 'Numerical Recipes in C'
 // (p. 361, 362)
-func Secant(fun ObjectiveFunction, args interface{}, x1, x2, xacc float64) (float64, error) {
+func Secant(fun ObjectiveFunction, args *mat.Dense, x1, x2, xacc float64) (float64, error) {
 	var j int
 	var fl, f, dx, xl, rts float64
 

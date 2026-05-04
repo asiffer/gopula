@@ -16,24 +16,27 @@ func (c *Frank) Family() string {
 
 // ThetaBounds returns the range where the copula is well defined
 func (c *Frank) ThetaBounds() (float64, float64) {
-	return 0., Inf
+	return 0., math.Inf(1)
 }
 
 // Psi is the generating function of the copula
 func (c *Frank) Psi(t float64, theta float64) float64 {
-	return -math.Log(1.-(1.-math.Exp(-theta))*math.Exp(-t)) / theta
+	return -math.Log1p(math.Expm1(-theta)*math.Exp(-t)) / theta
 }
 
 // PsiInv is the inverse of the generating function of the copula
 func (c *Frank) PsiInv(t float64, theta float64) float64 {
-	return -math.Log((1. - math.Exp(-theta*t)) / (1. - math.Exp(-theta)))
+	return -math.Log(math.Expm1(-theta*t) / math.Expm1(-theta))
 }
 
 func negativeIntegerPolylog(x float64, dim int) float64 {
 	// Woods formula to compute Li_{-d}(x)
 	Li := 0.
+	fact := 1.0
 	for k := 0; k < dim+1; k++ {
-		Li += float64(factorial(k)) * stirlingSecondKind.At(dim+1, k+1) * math.Pow(x/(1.-x), float64(k+1))
+		fk := float64(k + 1)
+		Li += fact * stirling2(dim+1, k+1) * math.Pow(x/(1.-x), fk)
+		fact = fact * fk
 	}
 	return Li
 }
@@ -45,7 +48,7 @@ func (c *Frank) PsiD(dim int, t float64, theta float64) float64 {
 	if dim%2 == 1 {
 		coeff = -1.
 	}
-	return coeff * alpha * negativeIntegerPolylog((1.-math.Exp(-theta))*math.Exp(-t), dim-1)
+	return coeff * alpha * negativeIntegerPolylog(-math.Expm1(-theta)*math.Exp(-t), dim-1)
 }
 
 // t computes  PsiInv(u_1) + PsiInv(u_2) ... + PsiInv(u_d)
@@ -65,17 +68,17 @@ func (c *Frank) Cdf(vector []float64, theta float64) float64 {
 
 // Pdf computes the density of the generated copula
 func (c *Frank) Pdf(vector []float64, theta float64) float64 {
-	if min(vector) == 0. {
-		return 0.
-	}
+	// if min(vector) == 0. {
+	// 	return 0.
+	// }
 	dim := len(vector)
 	dimF := float64(dim)
 
-	r := 1. - math.Exp(-theta)
+	r := -math.Expm1(-theta)
 	p := math.Pow(theta/r, dimF-1.)
 	h := math.Pow(r, 1.-dimF)
-	for j := 0; j < dim; j++ {
-		h = h * (1. - math.Exp(-theta*vector[j]))
+	for j := range dim {
+		h = h * (-math.Expm1(-theta * vector[j]))
 	}
 
 	return p * negativeIntegerPolylog(h, dim-1) * math.Exp(-theta*sum(vector)) / h
@@ -90,11 +93,11 @@ func (c *Frank) LogPdf(vector []float64, theta float64) float64 {
 	dim := len(vector)
 	dimF := float64(dim)
 
-	r := 1. - math.Exp(-theta)
+	r := -math.Expm1(-theta)
 	h := math.Pow(r, 1.-dimF)
 	lh := 0.
-	for j := 0; j < dim; j++ {
-		w := (1. - math.Exp(-theta*vector[j]))
+	for j := range dim {
+		w := -math.Expm1(-theta * vector[j])
 		h = h * w
 		lh += math.Log(w)
 	}
