@@ -2,16 +2,14 @@ name: Test
 
 on:
   pull_request:
-    paths:
-        - '**.go'
-        - '**.csv'
+    paths-ignore:
+        - '**.md'
   workflow_dispatch:
   push:
     branches:
       - master
-    paths:
-        - '**.go'
-        - '**.csv'
+    paths-ignore:
+        - '**.md'
 
 
 jobs:
