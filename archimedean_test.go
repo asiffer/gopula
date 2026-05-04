@@ -4,6 +4,7 @@ package gopula
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 )
@@ -46,12 +47,72 @@ func title(s string) {
 }
 
 func TestPrintFitResults(t *testing.T) {
-	M, err := LoadCSV(claytonSample, ',', false)
+	data, err := claytonFS.ReadFile("tests/samples/clayton_2.csv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	M, err := loadCSVFromBytes(data, ',')
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	AC := NewCopula("clayton", -3.)
-	result := AC.Fit(M)
+	AC, err := NewCopula("clayton", 1.0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, _ := AC.Fit(M)
 	fmt.Println(result)
+}
+
+func thetaRange(copuler ArchimedeanCopuler, n int) []float64 {
+	min, max := copuler.ThetaBounds()
+	if math.IsInf(max, 1) {
+		max = inf
+	}
+	switch copuler.Family() {
+	case "clayton", "joe":
+		min += 1e-3
+	case "amh":
+		max -= 1e-3
+	}
+	p := make([]float64, n)
+	step := (max - min) / float64(n-1)
+	for i := 0; i < n; i++ {
+		p[i] = min + step*float64(i)
+	}
+	return p
+}
+
+func TestRadialCdf(t *testing.T) {
+	title("Testing radial cdf")
+
+	dim := 2
+	data := map[string][][]float64{
+		"amh":     AMH_RADIAL_CDF,
+		"clayton": CLAYTON_RADIAL_CDF,
+		"gumbel":  GUMBEL_RADIAL_CDF,
+		"frank":   FRANK_RADIAL_CDF,
+		"joe":     JOE_RADIAL_CDF,
+	}
+
+	for family, rows := range data {
+		t.Run(family, func(st *testing.T) {
+			for _, row := range rows {
+				theta := row[0]
+				r := row[1]
+				expected := row[2]
+				c, err := NewCopula(family, theta)
+				if err != nil {
+					st.Fatal(err)
+				}
+				computed := c.RadialCdf(r, dim)
+				if math.Abs(expected-computed) > 1e-8 {
+					st.Errorf("Bad radial computation for theta=%.2f, r=%.2f, dim=%d: expected %.5f, got %.5f",
+						theta, r, dim, expected, computed,
+					)
+				}
+			}
+		})
+	}
+
 }

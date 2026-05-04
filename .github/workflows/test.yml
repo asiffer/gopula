@@ -1,0 +1,38 @@
+name: Test
+
+on:
+  pull_request:
+    paths:
+        - '**.go'
+        - '**.csv'
+        - 'go.sum'
+        - '!README.md'
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - '**.go'
+      - '**.csv'
+      - 'go.sum'
+      - '!README.md'
+
+
+jobs:
+  test:
+    environment: codecov
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+      - name: Run tests
+        run: go test -v -race -coverprofile=coverage.txt -covermode=atomic .
+      - name: Upload coverage to Codecov
+        if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/master') }}
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }} # set in the codecov environment secrets

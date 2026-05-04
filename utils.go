@@ -8,7 +8,6 @@ import (
 	"math/rand"
 	"strings"
 
-	"gonum.org/v1/gonum/mat"
 	"gonum.org/v1/gonum/stat/distuv"
 	"gonum.org/v1/plot"
 	"gonum.org/v1/plot/plotter"
@@ -20,7 +19,7 @@ func zeros(n int) []float64 {
 
 func ones(n int) []float64 {
 	v := zeros(n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		v[i] = 1.
 	}
 	return v
@@ -104,7 +103,7 @@ func cat(base []float64, add []float64) []float64 {
 func scalarMul(v []float64, lambda float64) []float64 {
 
 	output := createCopy(v)
-	for i := 0; i < len(v); i++ {
+	for i := range v {
 		output[i] = output[i] * lambda
 	}
 	return output
@@ -112,7 +111,7 @@ func scalarMul(v []float64, lambda float64) []float64 {
 
 func scalarAdd(v []float64, c float64) []float64 {
 	output := createCopy(v)
-	for i := 0; i < len(v); i++ {
+	for i := range v {
 		output[i] = v[i] + c
 	}
 	return output
@@ -122,13 +121,9 @@ func scalarDiv(v []float64, lambda float64) []float64 {
 	return scalarMul(v, 1./lambda)
 }
 
-func scalarSub(v []float64, c float64) []float64 {
-	return scalarAdd(v, -c)
-}
-
 func pow(v []float64, e float64) []float64 {
 	output := createCopy(v)
-	for i := 0; i < len(v); i++ {
+	for i := range v {
 		output[i] = math.Pow(v[i], e)
 	}
 	return output
@@ -136,7 +131,7 @@ func pow(v []float64, e float64) []float64 {
 
 func log(v []float64) []float64 {
 	output := createCopy(v)
-	for i := 0; i < len(v); i++ {
+	for i := range v {
 		output[i] = math.Log(v[i])
 	}
 	return output
@@ -145,8 +140,8 @@ func log(v []float64) []float64 {
 func join(v []float64, sep string) string {
 	p := len(v)
 	format := "%.10f" + strings.Repeat(sep+"%.10f", p-1)
-	iface := make([]interface{}, p)
-	for i := 0; i < p; i++ {
+	iface := make([]any, p)
+	for i := range p {
 		iface[i] = v[i]
 	}
 	return fmt.Sprintf(format, iface...)
@@ -159,31 +154,26 @@ func factorial(n int) int {
 	return n * factorial(n-1)
 }
 
-func matPrint(X mat.Matrix) {
-	fa := mat.Formatted(X, mat.Prefix(""), mat.Squeeze())
-	fmt.Printf("%v\n", fa)
-}
-
 func uniformSample(n int) []float64 {
 	sample := make([]float64, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		sample[i] = rand.Float64()
 	}
 	// fmt.Println(sample)
 	return sample
 }
 
-// func standardExpSample(n int) []float64 {
-// 	sample := make([]float64, n)
-// 	for i := 0; i < n; i++ {
-// 		sample[i] = rand.ExpFloat64()
-// 	}
-// 	return sample
-// }
+//	func standardExpSample(n int) []float64 {
+//		sample := make([]float64, n)
+//		for i := 0; i < n; i++ {
+//			sample[i] = rand.ExpFloat64()
+//		}
+//		return sample
+//	}
 func standardExpSample(n int) []float64 {
 	exp := distuv.Exponential{Rate: 1.}
 	sample := make([]float64, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		sample[i] = exp.Rand()
 	}
 	return sample
@@ -204,14 +194,12 @@ func euclid(a int, b int) (int, int) {
 func Hist(values []float64, bins int, path string) error {
 	V := plotter.Values(values)
 
-	var plt *plot.Plot
+	// var plt *plot.Plot
 	var hist *plotter.Histogram
 	var err error
 
-	plt, err = plot.New()
-	if err != nil {
-		return err
-	}
+	plt := plot.New()
+
 	hist, err = plotter.NewHist(V, bins)
 	if err != nil {
 		return err
@@ -221,24 +209,3 @@ func Hist(values []float64, bins int, path string) error {
 	return plt.Save(300, 300, path)
 }
 
-func rawCol(M *mat.Dense, j int) []float64 {
-	n, _ := M.Dims()
-	col := make([]float64, n)
-	for i := 0; i < n; i++ {
-		col[i] = M.At(i, j)
-	}
-	return col
-}
-
-func checkMargins(path string) {
-	M, err := LoadCSV(path, ',', false)
-	if err != nil {
-		return
-	}
-	_, p := M.Dims()
-	var ext string
-	for j := 0; j < p; j++ {
-		ext = fmt.Sprintf("_%d.png", j)
-		Hist(rawCol(M, j), 80, strings.Replace(path, ".csv", ext, -1))
-	}
-}

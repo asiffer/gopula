@@ -1,8 +1,11 @@
-# gopula [![Build Status](https://travis-ci.com/asiffer/gopula.svg?branch=master)](https://travis-ci.com/asiffer/gopula) [![Go Report Card](https://goreportcard.com/badge/github.com/asiffer/gopula)](https://goreportcard.com/report/github.com/asiffer/gopula) [![Coverage Status](https://codecov.io/github/asiffer/gopula/coverage.svg?branch=master)](https://codecov.io/github/asiffer/gopula?branch=master) [![GoDoc](https://godoc.org/github.com/asiffer/gopula?status.svg)](https://godoc.org/github.com/asiffer/gopula) 
+# gopula 
 
-## Introduction
+[![Test](https://github.com/asiffer/gopula/actions/workflows/test.yml/badge.svg)](https://github.com/asiffer/gopula/actions/workflows/test.yml) [![Go Report Card](https://goreportcard.com/badge/github.com/asiffer/gopula)](https://goreportcard.com/report/github.com/asiffer/gopula) [![Coverage Status](https://codecov.io/github/asiffer/gopula/coverage.svg?branch=master)](https://codecov.io/github/asiffer/gopula?branch=master) [![GoDoc](https://godoc.org/github.com/asiffer/gopula?status.svg)](https://godoc.org/github.com/asiffer/gopula) 
 
-`gopula` is a pure Go package aimed to deal with Archimedean Copulas. It implements the well known families: Ali-Mikhail-Haq, Clayton, Frank, Gumbel and Joe.
+
+`gopula` is a pure Go package aimed to deal with Archimedean Copulas. 
+
+It implements the well known families: Ali-Mikhail-Haq, Clayton, Frank, Gumbel and Joe.
 
 Currently `gopula` has three main features:
  - Basic computations (pdf, cdf, etc.)
@@ -17,25 +20,17 @@ $ go get github.com/asiffer/gopula
 
 
 ## Get started
-### Sampling
-
-`gopula` uses the McNeil & Nešlehová universal sampling method to draw observations from a given archimedean copula (see [references](#references))
 
 ```go
-// sampling.go
-
+// main.go
 package main
 
 import (
     "fmt"
+
     "gonum.org/v1/gonum/mat"
     "github.com/asiffer/gopula"
 )
-
-func matPrint(X mat.Matrix) {
-	fa := mat.Formatted(X, mat.Prefix(""), mat.Squeeze())
-	fmt.Printf("%v\n", fa)
-}
 
 func main() {
     // Create a new instance of an Archimedean copula
@@ -46,94 +41,51 @@ func main() {
     //  - "Frank"
     //  - "Gumbel"
     //  - "Joe"
-    A := gopula.NewCopula("Clayton", 2.5)
+    // it triggers an error if theta is not in the right
+    // bounds of the family (or if the family is unknown)
+    A, err := gopula.NewCopula("Clayton", 2.5)
+    if err != nil {
+        panic(err)
+    }
 
     // Sample some observations in the desired dimension
     // Sample(number of observations, dimension)
     // It returns a gonum matrix 
-    M := A.Sample(9000, 3)
-    matPrint(M)
-
-    // The matrix can be exported to a csv file
-    // SaveCSV(gonum matrix, path, separator)
-    err := gopula.SaveCSV(M, "/tmp/data.csv", ',')
-    if err != nil {
-        fmt.Println(err)
-    }
-}
-```
-
-We can check the output file:
-```shell
-$ go run sampling.go
-$ head /tmp/data.csv
-0.517730,0.402611,0.704825
-0.523264,0.565531,0.457385
-0.110614,0.162048,0.117283
-0.126623,0.175349,0.342992
-0.205170,0.199397,0.390389
-0.275976,0.151787,0.481059
-0.149396,0.198625,0.085618
-0.151417,0.586827,0.086791
-0.143233,0.227281,0.126375
-0.576612,0.459220,0.380677
-$ wc -l /tmp/data.csv
-9000 /tmp/data.csv
-```
-
-### Inference
-
-Despite Archimedean copulas is quite a rich class of copulas with a great deal of nice properties, estimating the single parameter 𝜃 from observations is not so easy. Many techniques exist but `gopula` uses Maximum Likelihood Estimation as it performs rather the best (see the work of Marius Hofert, Martin Mächler and Alexander J. McNeil in [[2]](#references)).
-
-The inference procedure mainly uses the formulas provided by the authors mentionned above (see [[3]](#references))
-
-```go
-// inference.go
-
-package main
-
-import (
-    "fmt"
-    "github.com/asiffer/gopula"
-)
-
-func main() {
-    // Load the previous sampled dataset
-    // Remember: they have been generated with 𝜃 = 2.5
-    M, _ := gopula.LoadCSV("/tmp/data.csv", ',', false)
-    if err != nil {
-        fmt.Println(err)
-        return
-    }
-
-    // Create a new instance of an Archimedean copula.
-    // The initial value of theta does not matter in 
-    // this case
-    A := gopula.NewCopula("Clayton", 7.5)
-
-    // Fit and see the results
-    result := A.Fit(M)
+    // It can returns an error when the radial PPF cannot converge for some point
+    M, err := A.Sample(10000, 3)
+    
+    // let us modify theta
+    A.theta = 10.0
+    // fit from the sample and show results
+    // an error can trigger when the minimum of the 
+    // log-likelihood cannot be found
+    result, err := A.Fit(M)
     fmt.Println(result)
 }
 ```
 
-Let us check what the value of 𝜃 is infered:
-```shell
-$ go run inference.go
-𝜃* 2.525        [2.481 2.570]
-ℓ  10856.550
-```
-
 We can notice that 𝜃* is quite close to those we used to generate the data (the values in brackets are 95% confidence bounds and ℓ is the maximum likelihood reached).
 
-## Troubleshooting
+```shell
+       ℓ 12171.392848
+       𝜃 2.489516
+     95% [2.448, 2.532]
+   Evals 18
+ Message Success
+```
 
-The sampling may output out-of-bounds data (coordinates higher than 1). It occurs when the radial quantile function fails. As it uses a bisection search, it is probably due to a lack of function evaluations. You can increase it through the variable `gopula.MaxFunEvals`. 
+## Details
 
+### Sampling
 
-## Next
+`gopula` uses the McNeil & Nešlehová universal sampling method to draw observations from a given archimedean copula (see [references](#references))
 
-I am currently implementing a kind of "margin" object aimed to represent an empirical cumulative distribution function (ecdf). In fact, most of the time, you have not uniform margins necessary to fit a copula so you need to transform the real margins with their ecdf (see [wikipedia](https://en.wikipedia.org/wiki/Copula_(probability_theory))).
+### Inference
+
+Despite Archimedean copulas is quite a rich class of copulas with a great deal of nice properties, estimating the single parameter 𝜃 from observations is not so easy. Many techniques exist but `gopula` uses **Maximum Likelihood Estimation** (MLE) as it performs rather the best (see the work of Marius Hofert, Martin Mächler and Alexander J. McNeil in [[2]](#references)).
+
+The inference procedure mainly uses the formulas provided by the authors mentionned above (see [[3]](#references))
+
 
 ## References
 

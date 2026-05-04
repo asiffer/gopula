@@ -6,27 +6,35 @@ import (
 	"fmt"
 	"math"
 	"testing"
+
+	"gonum.org/v1/gonum/mat"
 )
 
 func TestInitOptimizer(t *testing.T) {
 	title("Optimizers")
 }
 
-func parabol(x float64, a interface{}) float64 {
-	return 1. + (x-a.(float64))*(x-a.(float64))
+func parabol(x float64, M *mat.Dense) float64 {
+	a := M.At(0, 0)
+	return 1. + (x-a)*(x-a)
 }
 
-func fun0(x float64, k interface{}) float64 {
-	return -math.Pow(x, k.(float64)) * math.Exp(-x)
+func fun0(x float64, M *mat.Dense) float64 {
+	k := M.At(0, 0)
+	return -math.Pow(x, k) * math.Exp(-x)
 }
 
-func funTestRoot(x float64, k interface{}) float64 {
-	kf := k.(float64)
-	return 1 - kf*math.Pow(x, kf)
+func funTestRoot(x float64, M *mat.Dense) float64 {
+	k := M.At(0, 0)
+	return 1 - k*math.Pow(x, k)
+}
+
+func asDense(f float64) *mat.Dense {
+	return mat.NewDense(1, 1, []float64{f})
 }
 
 func TestParabol(t *testing.T) {
-	min := 2.0
+	min := asDense(2.0)
 	a := -10.
 	b := 50.
 	tol := 1e-8
@@ -34,7 +42,7 @@ func TestParabol(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if (xmin - min) > tol {
+	if (xmin - min.At(0, 0)) > tol {
 		t.Errorf("Minimum not found with given tolerance (expected %f, got %f)", a, xmin)
 	}
 }
@@ -45,7 +53,7 @@ func TestFun0(t *testing.T) {
 	b := 200.
 	tol := 1e-2
 
-	xmin, _, _, err := BrentMinimizer(fun0, k, a, b, tol)
+	xmin, _, _, err := BrentMinimizer(fun0, asDense(k), a, b, tol)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +71,7 @@ func TestBrentRootFinder(t *testing.T) {
 
 	sol := math.Pow(1/k, 1/k)
 
-	root, err := BrentRootFinder(funTestRoot, k, a, b, tol)
+	root, err := BrentRootFinder(funTestRoot, asDense(k), a, b, tol)
 	if err != nil {
 		t.Log(err)
 	}
@@ -84,7 +92,7 @@ func TestBisection(t *testing.T) {
 
 	sol := math.Pow(1/k, 1/k)
 
-	root, err := Bisection(funTestRoot, k, a, b, tol)
+	root, err := Bisection(funTestRoot, asDense(k), a, b, tol)
 	if err != nil {
 		t.Log(err)
 	}
@@ -105,7 +113,7 @@ func TestSecant(t *testing.T) {
 
 	sol := math.Pow(1/k, 1/k)
 
-	root, err := Secant(funTestRoot, k, a, b, tol)
+	root, err := Secant(funTestRoot, asDense(k), a, b, tol)
 	if err != nil {
 		t.Log(err)
 	}
@@ -119,18 +127,28 @@ func TestSecant(t *testing.T) {
 
 func TestOptimizerComparison(t *testing.T) {
 	checkTitle("Comparison between Brent and BFGS...\n")
-	arch := NewCopula("Clayton", 5.)
-	M, err := LoadCSV(claytonSample, ',', false)
+	arch, err := NewCopula("Clayton", 5.)
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, b := arch.copula.ThetaBounds()
+	data, err := claytonFS.ReadFile("tests/samples/clayton_2.csv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	M, err := loadCSVFromBytes(data, ',')
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, b := arch.copula.ThetaBounds()
+	if math.IsInf(b, 1) {
+		b = 20.0
+	}
 
 	fmt.Printf("\nMethod %-12s %-12s %-12s\n", "𝜃*", "ℓ", "fEval")
 	fmt.Println("--------------------------------------")
-	thetaBest, llhood, nit, _ := BFGS(arch.logLikelihoodToMinimize, M, 2.5)
+	thetaBest, llhood, nit, _ := BFGS(arch.logLikelihoodToMinimize, M, 3.3)
 	fmt.Printf("BFGS   %-12.6f %-12.6f %-12d\n", thetaBest, -llhood, nit)
-	thetaBest, llhood, nit, _ = BrentMinimizer(arch.logLikelihoodToMinimize, M, a, b, 1e-6)
+	thetaBest, llhood, nit, _ = BrentMinimizer(arch.logLikelihoodToMinimize, M, 1, b, 1e-6)
 	fmt.Printf("Brent  %-12.6f %-12.6f %-12d\n", thetaBest, -llhood, nit)
 	fmt.Println("--------------------------------------")
 }

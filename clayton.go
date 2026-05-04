@@ -16,7 +16,7 @@ func (c *Clayton) Family() string {
 
 // ThetaBounds returns the range where the copula is well defined
 func (c *Clayton) ThetaBounds() (float64, float64) {
-	return 1.e-10, Inf
+	return 0, math.Inf(1)
 }
 
 // Psi is the generating function of the copula
