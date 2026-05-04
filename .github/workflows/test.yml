@@ -2,10 +2,16 @@ name: Test
 
 on:
   pull_request:
+    paths:
+        - '**.go'
+        - '**.csv'
   workflow_dispatch:
   push:
     branches:
       - master
+    paths:
+        - '**.go'
+        - '**.csv'
 
 
 jobs:
