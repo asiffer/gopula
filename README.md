@@ -57,7 +57,7 @@ func main() {
     // let us modify theta
     A.theta = 10.0
     // fit from the sample and show results
-    // an error can trigger we the minimum of the 
+    // an error can trigger when the minimum of the 
     // log-likelihood cannot be found
     result, err := A.Fit(M)
     fmt.Println(result)
